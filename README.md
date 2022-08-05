@@ -1,1 +1,1 @@
-# CppSimConnect
+# CppSimConnect - a Modern C++ Library for interacting with SimConnect
