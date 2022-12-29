@@ -21,7 +21,7 @@
     <ClInclude Include="pch.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="cppsimconnect\message.h">
+    <ClInclude Include="message.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
