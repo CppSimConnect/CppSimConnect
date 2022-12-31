@@ -16,4 +16,6 @@
 
 #pragma once
 
-#include "CppSimConnect.h"
+
+#include "../CppSimConnect/CppSimConnect.h"
+#include "SimState.h"

@@ -16,12 +16,6 @@
 
 #pragma once
 
-#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
-#pragma warning(disable:4245)
-#include <windows.h>
-#include <SimConnect.h>
-#pragma warning(default:4245)
-
 #include <chrono>
 #include <functional>
 #include <mutex>
@@ -30,7 +24,7 @@
 #include <map>
 
 
-#include "message.h"
+#include "AppInfo.h"
 
 namespace CppSimConnect {
 
@@ -49,6 +43,8 @@ namespace CppSimConnect {
 		MSFS2020
 	};
 
+	class SimState;
+
 	class SimConnect {
 	public:
 		class Builder;
@@ -60,6 +56,7 @@ namespace CppSimConnect {
 		};
 
 		SimConnect(Builder const& builder) :
+			_state{ nullptr },
 			_clientName{ builder._clientName },
 			_autoConnect{ builder._autoConnect },
 			_autoConnectRetryPeriod{ builder._autoConnectRetryPeriod },
@@ -79,9 +76,13 @@ namespace CppSimConnect {
 		SimConnect& operator=(SimConnect&&) = delete;
 
 	private:
-		std::atomic_bool running;
+		SimState* _state;
+		friend class SimState;
+
+		std::atomic_bool _running;
+		std::atomic_bool _connected;
 		bool _stopOnDisconnect;
-		HANDLE simHandle{ nullptr };
+
 		FlightSimType connectedSim{ FlightSimType::Unknown };
 
 		std::atomic_bool _autoConnect;
@@ -91,7 +92,7 @@ namespace CppSimConnect {
 		void autoConnectHandler();
 		std::jthread autoConnector;
 
-		std::mutex simConnectMutex;
+		std::mutex _simConnector;
 		std::condition_variable running_cv;
 		std::condition_variable connection_cv;
 
@@ -106,67 +107,67 @@ namespace CppSimConnect {
 		std::function<void(LogLevel level, std::string)> _logger;
 
 		std::vector<std::function<void(std::string const& msg)>> stateLoggers;
+		void notifyStateChanged(std::string const& msg) const { for (auto const& cb : stateLoggers) { cb(msg); } }
+
 		std::vector<std::function<void()>> onConnectHandlers;
+		void notifyConnected() const { for (auto const& cb : onConnectHandlers) { cb(); } }
+
 		std::vector<std::function<void(messages::AppInfo const& appInfo)>> onOpenHandlers;
+		void notifyOpen() const { for (auto const& cb : onOpenHandlers) { cb(appInfo); } }
 		std::vector<std::function<void()>> onCloseHandlers;
+		void notifyClose() const { for (auto const& cb : onCloseHandlers) { cb(); } }
 		std::vector<std::function<void()>> onDisconnectHandlers;
+		void notifyDisconnected() const { for (auto const& cb : onDisconnectHandlers) { cb(); } }
 
-		// Message handling
-		void onExcept(SIMCONNECT_EXCEPTION e, DWORD sendId, DWORD parmIndex);
+		// SimConnect Shim
+		inline bool haveState() const noexcept { return _state != nullptr; }
+		void createState();
+		void releaseState();
 
-		static void handleMessage(SIMCONNECT_RECV* msgPtr, DWORD msgLen, void* context) noexcept;
+		bool simConnect();
+		bool simDisconnect();
+		void simDispatch();
+		void simDrainDispatchQueue();
+
 
 	public:
 
-		bool isRunning() const { return running; }
-		void start() noexcept {
-			if (!running.exchange(true)) {
-				std::lock_guard lock(simConnectMutex);
-				autoConnector = std::jthread(std::mem_fn(&SimConnect::autoConnectHandler), this);
-			}
-			running_cv.notify_all();
-		}
+		bool running() const { return _running; }
+		void start() noexcept;
 		void stop() noexcept {
-			running = false;
+			if (_logger && (_loggingThreshold >= LogLevel::Debug)) {
+				_logger(LogLevel::Debug, "SimConnect::stop()");
+			}
+			_running = false;
 			running_cv.notify_all();
 		}
 
-		HANDLE const& handle() const noexcept { return simHandle; }
-		bool isConnected() const noexcept { return handle() != nullptr; }
+		inline bool connected() const noexcept { return _connected; }
 
 		[[nodiscard]]
 		bool connect() noexcept;
 		void disconnect() noexcept;
 
-		bool autoConnect() const noexcept { return _autoConnect; }
+		inline bool autoConnect() const noexcept { return _autoConnect; }
 		void autoConnect(bool autoConnect = true) {
 			_autoConnect = autoConnect;
 			connection_cv.notify_all();
 		}
 
-		std::chrono::milliseconds autoConnectRetryPeriods() const noexcept { return _autoConnectRetryPeriod; }
+		inline std::chrono::milliseconds autoConnectRetryPeriods() const noexcept { return _autoConnectRetryPeriod; }
 		template <typename Repr>
 		void autoConnectRetryPeriods(std::chrono::duration<Repr> period) { _autoConnectRetryPeriod = period; }
 
-		std::chrono::milliseconds messagePollerRetryPeriod() const { return _messagePollerRetryPeriod; }
+		inline std::chrono::milliseconds messagePollerRetryPeriod() const { return _messagePollerRetryPeriod; }
 		template <typename Repr>
 		void messagePollerRetryPeriod(std::chrono::duration<Repr> period) { _messagePollerRetryPeriod = period; }
 
 		// Callbacks
 		void addStateLogger(std::function<void(std::string const& msg)>&& cb) { stateLoggers.emplace_back(cb); }
-		void stateChanged(std::string const& msg) const { for (auto const& cb : stateLoggers) { cb(msg); } }
-
 		void onConnect(std::function<void()>&& cb) { onConnectHandlers.emplace_back(cb); }
-		void connected() const { for (auto const& cb : onConnectHandlers) { cb(); } }
-
 		void onDisconnect(std::function<void()>&& cb) { onDisconnectHandlers.emplace_back(cb); }
-		void disconnected() const { for (auto const& cb : onDisconnectHandlers) { cb(); } }
-
 		void onOpen(std::function<void(messages::AppInfo const& appInfo)>&& cb) { onOpenHandlers.emplace_back(cb); }
-		void receivedOpen() const { for (auto const& cb : onOpenHandlers) { cb(appInfo); } }
-
 		void onClose(std::function<void()>&& cb) { onCloseHandlers.emplace_back(cb); }
-		void receivedClose() const { for (auto const& cb : onCloseHandlers) { cb(); } }
 
 		/**
 		 * <summary></summary>

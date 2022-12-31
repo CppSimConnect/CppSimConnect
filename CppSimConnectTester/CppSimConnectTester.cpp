@@ -16,7 +16,7 @@
 
 #include <iostream>
 
-#include "../CppSimConnect/SimConnect.h"
+#include "../CppSimConnect/CppSimConnect.h"
 
 using CppSimConnect::SimConnect;
 
@@ -29,6 +29,8 @@ int main()
         .withMessagePollerRetryPeriod(std::chrono::seconds(1))
         .startStopped()
         .stopOnDisconnect()
+        .withLogThreshold(CppSimConnect::LogLevel::Debug)
+        .withLogger([]([[maybe_unused]]auto level, auto msg) { std::cerr << msg << std::endl; })
         .build();
 
     sim.onOpen([](auto appInfo) {
@@ -59,11 +61,14 @@ int main()
         std::cerr << msg << std::endl;
         });
 
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+
     sim.start();
 
-    while (true) {
-        std::cerr << "Waiting..." << std::endl;
-        std::this_thread::sleep_for(std::chrono::seconds(30));
-
+    while (std::chrono::steady_clock::now() < deadline) {
+        std::cerr << "Waiting 5 seconds" << std::endl;
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
+    std::cerr << "Shutting down" << std::endl;
+    sim.stop();
 }

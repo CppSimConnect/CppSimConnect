@@ -190,6 +190,9 @@
     <ClCompile Include="CppSimConnectTester.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\CppSimConnectMSFS\CppSimConnectMSFS.vcxproj">
+      <Project>{bd54784b-7416-4110-9a2b-201929ae7a5f}</Project>
+    </ProjectReference>
     <ProjectReference Include="..\CppSimConnect\CppSimConnect.vcxproj">
       <Project>{974fb907-8438-4265-a6c7-d45a72a14855}</Project>
     </ProjectReference>

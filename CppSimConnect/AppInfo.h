@@ -31,18 +31,5 @@ namespace CppSimConnect::messages {
 		std::string scVersionMinor;
 		std::string scBuildMajor;
 		std::string scBuildMinor;
-
-		void operator=(SIMCONNECT_RECV_OPEN const& msg) {
-			appName = msg.szApplicationName;
-
-			appVersionMajor = std::to_string(msg.dwApplicationVersionMajor);
-			appVersionMinor = std::to_string(msg.dwApplicationVersionMinor);
-			appBuildMajor = std::to_string(msg.dwApplicationBuildMajor);
-			appBuildMinor = std::to_string(msg.dwApplicationBuildMinor);
-			scVersionMajor = std::to_string(msg.dwSimConnectVersionMajor);
-			scVersionMinor = std::to_string(msg.dwSimConnectVersionMinor);
-			scBuildMajor = std::to_string(msg.dwSimConnectBuildMajor);
-			scBuildMinor = std::to_string(msg.dwSimConnectBuildMinor);
-		}
 	};
 }
