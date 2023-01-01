@@ -35,12 +35,10 @@ void SimConnect::releaseState()
     _state = nullptr;
 }
 
-bool SimConnect::simConnect()
+bool SimConnect::simConnect(bool byAutoConnect)
 {
     if (_state) {
-        if (_logger && (_loggingThreshold >= LogLevel::Warn)) {
-            _logger(LogLevel::Warn, "Forcing SimConnect_Close() to clean up old handle.");
-        }
+        _logger.warn("Forcing SimConnect_Close() to clean up old handle.");
         simDisconnect();
     }
     HANDLE h;
@@ -49,43 +47,44 @@ bool SimConnect::simConnect()
         createState();
         _state->_handle = h;
     }
-    else if (!_autoConnect && _logger && (LogLevel::Error >= _loggingThreshold)) {
-        _logger(LogLevel::Error, std::format("Connection to simulator failed. (0x{:08x})", result));
+    else if (!byAutoConnect) {
+        long long bigInt = static_cast<unsigned long>(result);
+        _logger.error("Connection to simulator failed. ({:x})", bigInt);
     }
     return SUCCEEDED(result);
 }
 
-bool SimConnect::simDisconnect()
+bool SimConnect::simDisconnect() noexcept
 {
     if (!_state) {
         return false; // Already disconnected
     }
     if (_state->_handle == nullptr) {
         releaseState();
-        if (_logger && (LogLevel::Warn >= _loggingThreshold)) {
-            _logger(LogLevel::Warn, "Not connected, but cleaning up state.");
-        }
+
+        _logger.warn("Not connected, but cleaning up state.");
+
         return false; // Already disconnected.. assuming we just forgot to clen up?
     }
     HANDLE h{ _state->_handle };
     _state->_handle = nullptr;
 
     HRESULT result = SimConnect_Close(h);
-    if (FAILED(result) && _logger && (LogLevel::Error >= _loggingThreshold)) {
-        _logger(LogLevel::Error, "Failed to disconnect from simulator.");
+    if (FAILED(result)) {
+        _logger.error("Failed to disconnect from simulator.");
     }
     return SUCCEEDED(result);
 }
 
-void SimConnect::simDispatch()
+void SimConnect::simDispatch() noexcept
 {
     HRESULT dpResult = SimConnect_CallDispatch(_state->_handle, &SimState::cppSimConnect_MSFS_handleMessage, this);
-    if (FAILED(dpResult) && _logger && (LogLevel::Error >= _loggingThreshold)) {
-        _logger(LogLevel::Error, std::format("Failed to start message dispatcher. (0x{:08x})", dpResult));
+    if (FAILED(dpResult)) {
+        _logger.error("Failed to start message dispatcher. (0x{:08x})", dpResult);
     }
 }
 
-void SimConnect::simDrainDispatchQueue()
+void SimConnect::simDrainDispatchQueue() noexcept
 {
     SIMCONNECT_RECV* msgPtr;
     DWORD msgLen;

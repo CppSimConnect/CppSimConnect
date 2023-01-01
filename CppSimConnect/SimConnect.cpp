@@ -19,19 +19,17 @@
 using CppSimConnect::LogLevel;
 using CppSimConnect::SimConnect;
 
-std::map<std::string, std::unique_ptr<CppSimConnect::SimConnect>> CppSimConnect::SimConnect::clients;
+std::map<std::string, std::unique_ptr<CppSimConnect::SimConnect>> CppSimConnect::SimConnect::_clients;
 
 
 void SimConnect::start() noexcept {
-    if (_logger && (_loggingThreshold >= LogLevel::Debug)) {
-        _logger(LogLevel::Debug, "SimConnect::start()");
-    }
+    _logger.debug("SimConnect::start()");
     if (!_running.exchange(true)) {
         std::lock_guard lock(_simConnector);
         notifyStateChanged("Starting connector-thread.");
-        autoConnector = std::jthread(std::mem_fn(&SimConnect::autoConnectHandler), this);
+        _autoConnector = std::jthread(std::mem_fn(&SimConnect::autoConnectHandler), this);
     }
-    running_cv.notify_all();
+    _running_cv.notify_all();
 }
 
 void CppSimConnect::SimConnect::autoConnectHandler()
@@ -45,35 +43,36 @@ void CppSimConnect::SimConnect::autoConnectHandler()
             simDrainDispatchQueue();
 
             std::unique_lock lock(_simConnector);
-            connection_cv.wait_for(lock, _messagePollerRetryPeriod, [this] { return !running() || !connected(); });
+            _connection_cv.wait_for(lock, _messagePollerRetryPeriod, [this] { return !running() || !connected(); });
         }
         else if (_autoConnect)
         {
             notifyStateChanged("Starting auto-connect loop.");
             while (running() && !connected())
             {
-                if (!connect())
+                if (!connect(true))
                 {
                     std::unique_lock lock(_simConnector);
-                    running_cv.wait_for(lock, _autoConnectRetryPeriod, [this] { return !running() || !_autoConnect; });
+                    _running_cv.wait_for(lock, _autoConnectRetryPeriod, [this] { return !running() || !_autoConnect; });
                 }
             }
         } else {
             notifyStateChanged("Waiting for connect.");
             std::unique_lock lock(_simConnector);
-            running_cv.wait(lock, [this] { return !running() || _autoConnect; });
+            _running_cv.wait(lock, [this] { return !running() || _autoConnect; });
         }
     }
 }
 
 [[nodiscard]]
-bool SimConnect::connect() noexcept
+bool SimConnect::connect(bool byAutoConnect)
 {
     if (!connected()) { disconnect(); }
 
-    bool result = simConnect();
+    bool result = simConnect(byAutoConnect);
     if (result) {
-        connection_cv.notify_all();
+        _connected = true;
+        _connection_cv.notify_all();
 
         notifyConnected();
 
@@ -85,7 +84,8 @@ bool SimConnect::connect() noexcept
 void CppSimConnect::SimConnect::disconnect() noexcept
 {
     if (simDisconnect()) {
-        connection_cv.notify_all();
+        _connected = false;
+        _connection_cv.notify_all();
 
         notifyDisconnected();
     }

@@ -23,19 +23,10 @@
 #include <vector>
 #include <map>
 
-
+#include "Logger.h"
 #include "AppInfo.h"
 
 namespace CppSimConnect {
-
-	enum class LogLevel {
-		Trace,
-		Debug,
-		Info,
-		Warn,
-		Error,
-		Fatal
-	};
 
 	enum class FlightSimType {
 		Unknown,
@@ -53,6 +44,7 @@ namespace CppSimConnect {
 		~SimConnect() {
 			disconnect();
 			stop();
+			releaseState();
 		};
 
 		SimConnect(Builder const& builder) :
@@ -63,7 +55,8 @@ namespace CppSimConnect {
 			_messagePollerRetryPeriod{ builder._messagePollerRetryPeriod },
 			_stopOnDisconnect{ builder._stopOnDisconnect },
 			_loggingThreshold{ builder._loggingThreshold },
-			_logger{ builder._logger }
+			_sink{ builder._logger },
+			_logger{ "SimConnect", _sink, _loggingThreshold }
 		{
 			if (builder._startRunning) {
 				start();
@@ -79,32 +72,34 @@ namespace CppSimConnect {
 		SimState* _state;
 		friend class SimState;
 
-		std::atomic_bool _running;
-		std::atomic_bool _connected;
 		bool _stopOnDisconnect;
+		std::mutex _simConnector;
 
-		FlightSimType connectedSim{ FlightSimType::Unknown };
+		std::atomic_bool _running;
+		std::condition_variable _running_cv;
 
+		std::atomic_bool _connected;
+		std::condition_variable _connection_cv;
+
+		std::jthread _messageDispatcher;
+
+		// Client connections
+		static std::map<std::string, std::unique_ptr<SimConnect>> _clients;
+		std::string _clientName;
+		messages::AppInfo _appInfo;
+		FlightSimType _connectedSim{ FlightSimType::Unknown };
+
+		// Connecting to the simulator
 		std::atomic_bool _autoConnect;
 		std::chrono::milliseconds _autoConnectRetryPeriod;
 		std::chrono::milliseconds _messagePollerRetryPeriod;
 
 		void autoConnectHandler();
-		std::jthread autoConnector;
-
-		std::mutex _simConnector;
-		std::condition_variable running_cv;
-		std::condition_variable connection_cv;
-
-		std::jthread messageDispatcher;
-
-		static std::map<std::string, std::unique_ptr<SimConnect>> clients;
-
-		std::string _clientName;
-		messages::AppInfo appInfo;
+		std::jthread _autoConnector;
 
 		LogLevel _loggingThreshold{ LogLevel::Info };
-		std::function<void(LogLevel level, std::string)> _logger;
+		LogSink _sink;
+		Logger _logger;
 
 		std::vector<std::function<void(std::string const& msg)>> stateLoggers;
 		void notifyStateChanged(std::string const& msg) const { for (auto const& cb : stateLoggers) { cb(msg); } }
@@ -113,7 +108,7 @@ namespace CppSimConnect {
 		void notifyConnected() const { for (auto const& cb : onConnectHandlers) { cb(); } }
 
 		std::vector<std::function<void(messages::AppInfo const& appInfo)>> onOpenHandlers;
-		void notifyOpen() const { for (auto const& cb : onOpenHandlers) { cb(appInfo); } }
+		void notifyOpen() const { for (auto const& cb : onOpenHandlers) { cb(_appInfo); } }
 		std::vector<std::function<void()>> onCloseHandlers;
 		void notifyClose() const { for (auto const& cb : onCloseHandlers) { cb(); } }
 		std::vector<std::function<void()>> onDisconnectHandlers;
@@ -124,10 +119,10 @@ namespace CppSimConnect {
 		void createState();
 		void releaseState();
 
-		bool simConnect();
-		bool simDisconnect();
-		void simDispatch();
-		void simDrainDispatchQueue();
+		bool simConnect(bool byAutoConnect = false);
+		bool simDisconnect() noexcept;
+		void simDispatch() noexcept;
+		void simDrainDispatchQueue() noexcept;
 
 
 	public:
@@ -135,23 +130,22 @@ namespace CppSimConnect {
 		bool running() const { return _running; }
 		void start() noexcept;
 		void stop() noexcept {
-			if (_logger && (_loggingThreshold >= LogLevel::Debug)) {
-				_logger(LogLevel::Debug, "SimConnect::stop()");
-			}
+			_logger.debug("SimConnect::stop()");
+
 			_running = false;
-			running_cv.notify_all();
+			_running_cv.notify_all();
 		}
 
 		inline bool connected() const noexcept { return _connected; }
 
 		[[nodiscard]]
-		bool connect() noexcept;
+		bool connect(bool byAutoConnect = false);
 		void disconnect() noexcept;
 
 		inline bool autoConnect() const noexcept { return _autoConnect; }
 		void autoConnect(bool autoConnect = true) {
 			_autoConnect = autoConnect;
-			connection_cv.notify_all();
+			_connection_cv.notify_all();
 		}
 
 		inline std::chrono::milliseconds autoConnectRetryPeriods() const noexcept { return _autoConnectRetryPeriod; }
@@ -244,8 +238,8 @@ namespace CppSimConnect {
 
 			SimConnect& build() {
 				auto result = std::make_unique<SimConnect>(*this);
-				SimConnect::clients[_clientName] = std::move(result);
-				return *SimConnect::clients.at(_clientName);
+				SimConnect::_clients[_clientName] = std::move(result);
+				return *SimConnect::_clients.at(_clientName);
 			}
 		};
 

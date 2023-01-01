@@ -204,6 +204,7 @@
   <ItemGroup>
     <ClInclude Include="AppInfo.h" />
     <ClInclude Include="CppSimConnect.h" />
+    <ClInclude Include="Logger.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>

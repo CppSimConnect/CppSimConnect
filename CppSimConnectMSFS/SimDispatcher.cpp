@@ -87,9 +87,7 @@ void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD m
     }
     CppSimConnect::SimConnect& sim{ *static_cast<SimConnect*>(context) };
     if (!sim.haveState()) {
-        if (sim._logger && (sim._loggingThreshold <= LogLevel::Error)) {
-            sim._logger(LogLevel::Error, "Received message from simulator but we have no valid connection.");
-        }
+        sim._logger.error("Received message from simulator but we have no valid connection.");
         return;
     }
     switch (msgPtr->dwID) {
@@ -102,9 +100,13 @@ void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD m
     break;
 
     case SIMCONNECT_RECV_ID_OPEN:
-        copyAppInfo(sim.appInfo, *static_cast<SIMCONNECT_RECV_OPEN*>(msgPtr));
+    {
+        auto msg = *static_cast<SIMCONNECT_RECV_OPEN*>(msgPtr);
+        copyAppInfo(sim._appInfo, msg);
+        sim._logger.info("Connected to '{}'", sim._appInfo.appName);
         sim.notifyOpen();
-        break;
+    }
+    break;
 
     case SIMCONNECT_RECV_ID_QUIT:
         sim.notifyClose();
