@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022. Bert Laverman
+ * Copyright (c) 2023. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,18 @@
 
 #pragma once
 
+#include <map>
+#include <mutex>
 
-#include "../CppSimConnect/CppSimConnect.h"
-#include "SimState.h"
+#include "Callbacks.h"
+
+namespace CppSimConnect {
+
+	template <typename Tid>
+	class CallbackManager {
+		std::map<Tid, CleanableCallbackList> _callbacks;
+
+	public:
+
+	};
+}

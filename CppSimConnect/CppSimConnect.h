@@ -18,13 +18,18 @@
 
 #include <chrono>
 #include <functional>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <vector>
 #include <map>
 
 #include "Logger.h"
+
 #include "AppInfo.h"
+
+#include "events/SystemState.h"
+
 
 namespace CppSimConnect {
 
@@ -41,36 +46,21 @@ namespace CppSimConnect {
 		class Builder;
 		friend class Builder;
 
-		~SimConnect() {
-			disconnect();
-			stop();
-			releaseState();
-		};
+		friend class SimState;
 
-		SimConnect(Builder const& builder) :
-			_state{ nullptr },
-			_clientName{ builder._clientName },
-			_autoConnect{ builder._autoConnect },
-			_autoConnectRetryPeriod{ builder._autoConnectRetryPeriod },
-			_messagePollerRetryPeriod{ builder._messagePollerRetryPeriod },
-			_stopOnDisconnect{ builder._stopOnDisconnect },
-			_loggingThreshold{ builder._loggingThreshold },
-			_sink{ builder._logger },
-			_logger{ "SimConnect", _sink, _loggingThreshold }
-		{
-			if (builder._startRunning) {
-				start();
-			}
-		};
+		SimConnect(Builder const& builder);
+
+		~SimConnect();
 
 		SimConnect(SimConnect const&) = delete;
 		SimConnect(SimConnect&&) = delete;
 		SimConnect& operator=(SimConnect const&) = delete;
 		SimConnect& operator=(SimConnect&&) = delete;
 
+		std::weak_ptr<SimConnect> weakThis() const noexcept { return _clients.at(_clientName); }
+
 	private:
-		SimState* _state;
-		friend class SimState;
+		std::unique_ptr<SimState> _state;
 
 		bool _stopOnDisconnect;
 		std::mutex _simConnector;
@@ -84,7 +74,7 @@ namespace CppSimConnect {
 		std::jthread _messageDispatcher;
 
 		// Client connections
-		static std::map<std::string, std::unique_ptr<SimConnect>> _clients;
+		static std::map<std::string, std::shared_ptr<SimConnect>> _clients;
 		std::string _clientName;
 		messages::AppInfo _appInfo;
 		FlightSimType _connectedSim{ FlightSimType::Unknown };
@@ -114,11 +104,6 @@ namespace CppSimConnect {
 		std::vector<std::function<void()>> onDisconnectHandlers;
 		void notifyDisconnected() const { for (auto const& cb : onDisconnectHandlers) { cb(); } }
 
-		// SimConnect Shim
-		inline bool haveState() const noexcept { return _state != nullptr; }
-		void createState();
-		void releaseState();
-
 		bool simConnect(bool byAutoConnect = false);
 		bool simDisconnect() noexcept;
 		void simDispatch() noexcept;
@@ -126,6 +111,7 @@ namespace CppSimConnect {
 
 
 	public:
+		// SimConnect state
 
 		bool running() const { return _running; }
 		void start() noexcept;
@@ -155,6 +141,11 @@ namespace CppSimConnect {
 		inline std::chrono::milliseconds messagePollerRetryPeriod() const { return _messagePollerRetryPeriod; }
 		template <typename Repr>
 		void messagePollerRetryPeriod(std::chrono::duration<Repr> period) { _messagePollerRetryPeriod = period; }
+
+		// Simulator state
+		
+		void RequestSystemState();
+		void SubscribeToSystemState();
 
 		// Callbacks
 		void addStateLogger(std::function<void(std::string const& msg)>&& cb) { stateLoggers.emplace_back(cb); }
@@ -237,7 +228,7 @@ namespace CppSimConnect {
 			}
 
 			SimConnect& build() {
-				auto result = std::make_unique<SimConnect>(*this);
+				auto result = std::make_shared<SimConnect>(*this);
 				SimConnect::_clients[_clientName] = std::move(result);
 				return *SimConnect::_clients.at(_clientName);
 			}

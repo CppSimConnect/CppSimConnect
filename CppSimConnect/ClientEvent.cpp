@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022. Bert Laverman
+ * Copyright (c) 2023. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "pch.h"
+#include "events/ClientEvent.h"
 
-#include <array>
-#include <map>
-#include <queue>
 
-#include <string>
+using CppSimConnect::ClientEvent;
 
-#include "CppSimConnect.h"
-#include "SimState.h"
+/*
+std::mutex ClientEvent::_eventLock;
+ClientEvent::EventID ClientEvent::_nextID{ 0 };
+std::vector<std::string> ClientEvent::_names;
+std::map<std::string, ClientEvent::EventID> ClientEvent::_ids;
+*/

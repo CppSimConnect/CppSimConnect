@@ -21,20 +21,6 @@ using CppSimConnect::LogLevel;
 using CppSimConnect::SimConnect;
 
 
-void SimConnect::createState()
-{
-    if (haveState()) {
-        releaseState();
-    }
-    _state = new SimState;
-}
-
-void SimConnect::releaseState()
-{
-    delete _state;
-    _state = nullptr;
-}
-
 bool SimConnect::simConnect(bool byAutoConnect)
 {
     if (_state) {
@@ -44,7 +30,7 @@ bool SimConnect::simConnect(bool byAutoConnect)
     HANDLE h;
     HRESULT result = SimConnect_Open(&h, _clientName.c_str(), nullptr, 0, nullptr, 0);
     if (SUCCEEDED(result)) {
-        createState();
+        _state = std::make_unique<SimState>();
         _state->_handle = h;
     }
     else if (!byAutoConnect) {
@@ -60,11 +46,10 @@ bool SimConnect::simDisconnect() noexcept
         return false; // Already disconnected
     }
     if (_state->_handle == nullptr) {
-        releaseState();
-
         _logger.warn("Not connected, but cleaning up state.");
+        _state.reset(nullptr);
 
-        return false; // Already disconnected.. assuming we just forgot to clen up?
+        return false; // Already disconnected.. assuming we just forgot to clean up?
     }
     HANDLE h{ _state->_handle };
     _state->_handle = nullptr;

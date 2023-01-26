@@ -16,10 +16,33 @@
 
 #include "pch.h"
 
+
 using CppSimConnect::LogLevel;
 using CppSimConnect::SimConnect;
 
-std::map<std::string, std::unique_ptr<CppSimConnect::SimConnect>> CppSimConnect::SimConnect::_clients;
+// These need to go here to hide the SimState class.
+
+SimConnect::SimConnect(SimConnect::Builder const& builder) :
+    _clientName{ builder._clientName },
+    _autoConnect{ builder._autoConnect },
+    _autoConnectRetryPeriod{ builder._autoConnectRetryPeriod },
+    _messagePollerRetryPeriod{ builder._messagePollerRetryPeriod },
+    _stopOnDisconnect{ builder._stopOnDisconnect },
+    _loggingThreshold{ builder._loggingThreshold },
+    _sink{ builder._logger },
+    _logger{ "SimConnect", _sink, _loggingThreshold }
+{
+    if (builder._startRunning) {
+        start();
+    }
+}
+
+SimConnect::~SimConnect() {
+    disconnect();
+    stop();
+}
+
+std::map<std::string, std::shared_ptr<CppSimConnect::SimConnect>> CppSimConnect::SimConnect::_clients;
 
 
 void SimConnect::start() noexcept {

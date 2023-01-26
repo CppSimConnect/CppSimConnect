@@ -14,13 +14,15 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "pch.h"
 
-#include <array>
-#include <map>
-#include <queue>
+using CppSimConnect::SimConnect;
 
-#include <string>
 
-#include "CppSimConnect.h"
-#include "SimState.h"
+static std::array<std::string, 5> const  SystemStateNames{
+	"AircraftLoaded",
+	"DialogMode",
+	"FlightLoaded",
+	"FlightPlan",
+	"Sim",
+};

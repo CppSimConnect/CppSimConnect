@@ -86,7 +86,7 @@ void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD m
         return;
     }
     CppSimConnect::SimConnect& sim{ *static_cast<SimConnect*>(context) };
-    if (!sim.haveState()) {
+    if (!sim._state) {
         sim._logger.error("Received message from simulator but we have no valid connection.");
         return;
     }
