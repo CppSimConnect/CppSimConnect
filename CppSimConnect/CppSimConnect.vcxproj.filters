@@ -27,7 +27,7 @@
     <ClInclude Include="Logger.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="events\SystemState.h">
+    <ClInclude Include="requests\SystemState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="reactive\MessageObserver.h">
@@ -36,19 +36,28 @@
     <ClInclude Include="events\ClientEvent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="requests\RequestManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="SimState.h">
+    <ClInclude Include="sim\SimState.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EventManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Callbacks.h">
+    <ClInclude Include="reactive\Callbacks.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="CallbackManager.h">
+    <ClInclude Include="reactive\CallbackManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="reactive\MessageResult.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="reactive\StreamResult.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="exceptions\NotConnected.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="exceptions\SimException.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -59,16 +68,19 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ClientEvent.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="SystemState.cpp">
+    <ClCompile Include="events\ClientEvent.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="SimDispatcher.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="SimState.cpp">
+    <ClCompile Include="sim\SimState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="requests\SystemState.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="requests\Requests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

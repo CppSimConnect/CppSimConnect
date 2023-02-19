@@ -17,6 +17,7 @@
 #include <iostream>
 
 #include "../CppSimConnect/CppSimConnect.h"
+#include "../CppSimConnect/exceptions/NotConnected.h"
 
 using CppSimConnect::SimConnect;
 
@@ -61,12 +62,31 @@ int main()
         std::cerr << msg << std::endl;
         });
 
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    auto deadline = std::chrono::steady_clock::now() + std::chrono::minutes(5);
 
     sim.start();
 
     while (std::chrono::steady_clock::now() < deadline) {
-        std::cerr << "Waiting 5 seconds" << std::endl;
+        std::string airFile("<unknown>");
+        try {
+            airFile = sim.currentAircraftAirFile();
+            if (sim.isSimInDialogMode()) {
+                std::cerr << "Sim is currently in a dialog.\n";
+            }
+            else {
+                std::cerr << "Sim is running\n";
+            }
+            if (sim.isUserFlying()) {
+                std::cerr << "The user is currently flying.\n";
+            }
+            else {
+                std::cerr << "The user is currently doing dialog stuff.\n";
+            }
+        }
+        catch (CppSimConnect::NotConnected&) {
+            std::cerr << "[Not connected, no airfile available]\n";
+        }
+        std::cerr << "Waiting 5 seconds (aircraftLoaded = '" << airFile << "')" << std::endl;
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
     std::cerr << "Shutting down" << std::endl;

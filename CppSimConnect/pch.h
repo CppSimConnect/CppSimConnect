@@ -23,4 +23,4 @@
 #include <string>
 
 #include "CppSimConnect.h"
-#include "SimState.h"
+#include "sim/SimState.h"

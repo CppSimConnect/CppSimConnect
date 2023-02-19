@@ -19,6 +19,7 @@
 #include <functional>
 #include <mutex>
 #include <vector>
+#include <set>
 
 namespace CppSimConnect {
 
@@ -27,17 +28,31 @@ namespace CppSimConnect {
 	 */
 	template <typename... Tparm>
 	class CallbackList {
+	public:
 		using Callback = std::function<void(Tparm...)>;
 		using CallbackVector = std::vector<Callback>;
 
+		CallbackList() = default;
+		~CallbackList() = default;
+		CallbackList(CallbackList<Tparm...>&&) = default;
+		CallbackList(const CallbackList<Tparm...>&) = default;
+		CallbackList<Tparm...>& operator=(CallbackList<Tparm...>&&) = default;
+		CallbackList<Tparm...>& operator=(const CallbackList<Tparm...>&) = default;
+
+	private:
 		CallbackVector _callbacks;
 
 	public:
 		inline auto size() const noexcept { return _callbacks.size(); }
 		inline void add(Callback cb) { _callbacks.emplace_back(cb); }
 		inline void operator+=(Callback cb) { _callbacks.emplace_back(cb); }
+		inline void operator+=(const CallbackList<Tparm...>& other) {
+			for (const auto& cb : other._callbacks) {
+				_callbacks.push_back(cb);
+			}
+		}
 		inline void operator()(Tparm... parms) {
-			for (const Callback& cb : _callbacks)
+			for (const auto& cb : _callbacks)
 			{
 				cb(parms...);
 			}
@@ -53,9 +68,11 @@ namespace CppSimConnect {
 
 	template <typename... Tparm>
 	class ShortcutCallbackList {
+	public:
 		using Callback = std::function<CallbackResult(Tparm...)>;
 		using CallbackVector = std::vector<Callback>;
 
+	private:
 		CallbackVector _callbacks;
 
 	public:
@@ -77,9 +94,11 @@ namespace CppSimConnect {
 
 	template <typename... Tparm>
 	class CleanableCallbackList {
+	public:
 		using Callback = std::function<CallbackResult(Tparm...)>;
 		using CallbackVector = std::vector<std::pair<unsigned, Callback>>;
 
+	private:
 		CallbackVector _callbacks;
 		std::atomic_uint _nextId{ 0 };
 		std::mutex _mutex;
@@ -123,9 +142,11 @@ namespace CppSimConnect {
 
 	template <typename... Tparm>
 	class CleanableShortcutCallbackList {
+	public:
 		using Callback = std::function<CallbackResult(Tparm...)>;
 		using CallbackVector = std::vector<std::pair<unsigned, Callback>>;
 
+	private:
 		CallbackVector _callbacks;
 		std::atomic_uint _nextId{ 0 };
 		std::mutex _mutex;

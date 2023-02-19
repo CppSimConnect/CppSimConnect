@@ -19,52 +19,13 @@
 #include <array>
 #include <string>
 
+#include "sim/SimState.h"
+
+
 using CppSimConnect::LogLevel;
 using CppSimConnect::SimConnect;
 using CppSimConnect::SimState;
 
-
-constexpr int cppSimConnect_NumExceptions = SIMCONNECT_EXCEPTION_OBJECT_SCHEDULE + 1;
-static const std::array<std::string, cppSimConnect_NumExceptions> cppSimConnect_Exceptions = {
-    "None",                                 // Unused
-    "Error",
-    "Size mismatch",
-    "Unrecognized ID",
-    "Unopened",                             // Unused
-    "SimConnect version mismatch",
-    "Too many groups",
-    "Unknown event name",
-    "Too many event names",
-    "Duplicate event ID",
-    "Too many maps",
-    "Too many objects",
-    "Too many request IDs",
-    "Weather: Invalid port",                // Deprecated
-    "Weather: Invalid METAR",               // Deprecated
-    "Weather: Unable to get observation",   // Deprecated
-    "Weather: Unable to create station",    // Deprecated
-    "Weather: Unable to remove station",    // Deprecated
-    "Invalid data type",
-    "Invalid data size",
-    "Data error",
-    "Invalid array",
-    "Create object failed",
-    "Load flightplan failed",
-    "Invalid operation for object type",
-    "AI: Illegal operation",
-    "Already subscribed",
-    "Invalid enum",                         // Unknown datatype
-    "Data definition error",                // Requesting variable string data
-    "Duplicate ID",
-    "Unknown datum ID",
-    "Out of bounds",
-    "Client data area already created",
-    "AI: Outside of reality bubble",
-    "AI: Object container error",
-    "AI: Creation failed",
-    "AI: ATC error",
-    "AI: Scheduling error"
-};
 
 static void copyAppInfo(CppSimConnect::messages::AppInfo& info, SIMCONNECT_RECV_OPEN const& msg) {
     info.appName = msg.szApplicationName;
@@ -80,7 +41,7 @@ static void copyAppInfo(CppSimConnect::messages::AppInfo& info, SIMCONNECT_RECV_
 }
 
 
-void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD msgLen, void* context) noexcept
+void SimState::cppSimConnect_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD msgLen, void* context) noexcept
 {
     if ((msgPtr == nullptr) || (msgLen < sizeof(SIMCONNECT_RECV)) || (msgPtr->dwID == SIMCONNECT_RECV_ID_NULL)) {
         return;
@@ -90,12 +51,13 @@ void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD m
         sim._logger.error("Received message from simulator but we have no valid connection.");
         return;
     }
+
     switch (msgPtr->dwID) {
 
     case SIMCONNECT_RECV_ID_EXCEPTION:
     {
         SIMCONNECT_RECV_EXCEPTION& msg{ *static_cast<SIMCONNECT_RECV_EXCEPTION*>(msgPtr) };
-        sim._state->onExcept(msg.dwSendID, cppSimConnect_Exceptions[msg.dwException], msg.dwIndex);
+        sim._state->onExcept(msg.dwSendID, msg.dwException, msg.dwIndex);
     }
     break;
 
@@ -112,32 +74,15 @@ void SimState::cppSimConnect_MSFS_handleMessage(SIMCONNECT_RECV* msgPtr, DWORD m
         sim.notifyClose();
         break;
 
-    }
-}
-
-void SimState::addExceptionHandler(DWORD sendID, std::function<void(std::string const& msg, unsigned parmIndex)> handler)
-{
-    std::lock_guard<std::mutex> lock(_onExceptMutex);
-    while (_onExcept.size() >= _maxSenders) {
-        _onExcept.pop_front();
-    }
-    _onExcept.push_back({sendID, handler});
-}
-
-void SimState::onExcept(DWORD sendID, std::string const& msg, unsigned parmIndex)
-{
-    std::function<void(std::string const& msg, unsigned parmIndex)> handler;
+    case SIMCONNECT_RECV_ID_SYSTEM_STATE:
     {
-        std::lock_guard<std::mutex> lock(_onExceptMutex);
-
-        for (const auto& exceptionHandler : _onExcept) {
-            if (sendID == exceptionHandler.sendID) {
-                handler = exceptionHandler.handler;
-                break;
-            }
-        }
+        SIMCONNECT_RECV_SYSTEM_STATE& msg{ *static_cast<SIMCONNECT_RECV_SYSTEM_STATE*>(msgPtr) };
+        sim._logger.debug("System state received: {} ({})", msg.dwRequestID, msg.dwInteger);
+        sim._state->dispatchRequestData(msg.dwRequestID, msgPtr);
     }
-    if (handler) {
-        handler(msg, parmIndex);
+    break;
+
+    default:
+        sim._logger.warn("Unknown message type {}", msgPtr->dwID);
     }
 }

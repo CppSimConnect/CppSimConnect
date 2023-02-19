@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, 2022. Bert Laverman
+ * Copyright (c) 2023. Bert Laverman
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-#include "pch.h"
+#pragma once
 
-using CppSimConnect::SimConnect;
+#include "MessageObserver.h"
 
 
-static std::array<std::string, 5> const  SystemStateNames{
-	"AircraftLoaded",
-	"DialogMode",
-	"FlightLoaded",
-	"FlightPlan",
-	"Sim",
-};
+namespace CppSimConnect {
+	namespace Reactive {
+
+		template <typename Tmsg>
+		class StreamResult : public virtual MessageObserver<Tmsg, _MessageObserver<Tmsg>> {
+
+		};
+	}
+}

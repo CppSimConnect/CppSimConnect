@@ -23,9 +23,9 @@
 
 namespace CppSimConnect {
 
-	template <typename Tid>
+	template <typename Tid, typename... Tparm>
 	class CallbackManager {
-		std::map<Tid, CleanableCallbackList> _callbacks;
+		std::map<Tid, CleanableCallbackList<Tparm...>> _callbacks;
 
 	public:
 

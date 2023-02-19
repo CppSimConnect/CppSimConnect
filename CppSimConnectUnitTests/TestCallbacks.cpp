@@ -16,7 +16,7 @@
 
 #include "pch.h"
 
-#include "../CppSimConnect/Callbacks.h"
+#include "../CppSimConnect/reactive/Callbacks.h"
 
 using CppSimConnect::CallbackResult;
 

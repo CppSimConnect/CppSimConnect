@@ -28,8 +28,9 @@
 
 #include "AppInfo.h"
 
-#include "events/SystemState.h"
-
+#include "reactive/MessageObserver.h"
+#include "reactive/MessageResult.h"
+#include "requests/SystemState.h"
 
 namespace CppSimConnect {
 
@@ -104,11 +105,19 @@ namespace CppSimConnect {
 		std::vector<std::function<void()>> onDisconnectHandlers;
 		void notifyDisconnected() const { for (auto const& cb : onDisconnectHandlers) { cb(); } }
 
+		// Requests
+		std::atomic<unsigned> _nextReqId;
+		inline unsigned nextReqId() { return _nextReqId++; }
+
+		Reactive::MessageResult<std::string> simRequestSystemStateString(const std::string& stateName);
+		Reactive::MessageResult<bool> simRequestSystemStateBool(const std::string& stateName);
+
+		// Actual SimConnect calls hidden here
+
 		bool simConnect(bool byAutoConnect = false);
 		bool simDisconnect() noexcept;
 		void simDispatch() noexcept;
 		void simDrainDispatchQueue() noexcept;
-
 
 	public:
 		// SimConnect state
@@ -143,9 +152,17 @@ namespace CppSimConnect {
 		void messagePollerRetryPeriod(std::chrono::duration<Repr> period) { _messagePollerRetryPeriod = period; }
 
 		// Simulator state
-		
-		void RequestSystemState();
-		void SubscribeToSystemState();
+		std::string systemStateName(SystemState state) const noexcept;
+		Reactive::MessageResult<std::string> requestAircraftLoaded();
+		inline std::string currentAircraftAirFile() { return requestAircraftLoaded().get(); }
+		Reactive::MessageResult<bool> requestSimInDialogMode();
+		inline bool isSimInDialogMode() { return requestSimInDialogMode().get(); }
+		Reactive::MessageResult<std::string> requestFlightLoaded();
+		inline std::string currentFlight() { return requestFlightLoaded().get(); }
+		Reactive::MessageResult<std::string> requestFlightPlan();
+		inline std::string currentFlightPlan() { return requestFlightPlan().get(); }
+		Reactive::MessageResult<bool> requestUserFlying();
+		inline bool isUserFlying() { return requestUserFlying().get(); }
 
 		// Callbacks
 		void addStateLogger(std::function<void(std::string const& msg)>&& cb) { stateLoggers.emplace_back(cb); }

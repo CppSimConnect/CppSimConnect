@@ -14,31 +14,16 @@
  * limitations under the License.
  */
 
-#pragma once
+#include "../pch.h"
 
-#include "../CppSimConnect.h"
-
-#include <atomic>
+#include "ClientEvent.h"
 
 
-namespace CppSimConnect {
+using CppSimConnect::ClientEvent;
 
-	using RequestID = unsigned;
-
-	class RequestManager {
-		RequestManager(const RequestManager&) = delete;
-		RequestManager(RequestManager&&) = delete;
-		RequestManager& operator=(const RequestManager&) = delete;
-		RequestManager& operator=(RequestManager&&) = delete;
-
-		SimConnect& _api;
-		std::atomic<RequestID> _nextID;
-
-	public:
-		RequestManager(SimConnect& api) : _api{ api }, _nextID{ 1 } {}
-		~RequestManager() = default;
-
-		RequestID nextID() noexcept { return _nextID++; }
-
-	};
-}
+/*
+std::mutex ClientEvent::_eventLock;
+ClientEvent::EventID ClientEvent::_nextID{ 0 };
+std::vector<std::string> ClientEvent::_names;
+std::map<std::string, ClientEvent::EventID> ClientEvent::_ids;
+*/

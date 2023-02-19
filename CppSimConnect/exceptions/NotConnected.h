@@ -14,15 +14,17 @@
  * limitations under the License.
  */
 
-#include "pch.h"
-#include "events/ClientEvent.h"
+#pragma once
 
+#include <exception>
+#include <stdexcept>
 
-using CppSimConnect::ClientEvent;
+namespace CppSimConnect {
 
-/*
-std::mutex ClientEvent::_eventLock;
-ClientEvent::EventID ClientEvent::_nextID{ 0 };
-std::vector<std::string> ClientEvent::_names;
-std::map<std::string, ClientEvent::EventID> ClientEvent::_ids;
-*/
+	class NotConnected : public std::exception {
+	public:
+		virtual const char* what() const noexcept override  {
+			return "Not connected";
+		}
+	};
+}
